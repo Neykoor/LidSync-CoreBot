@@ -1,0 +1,19 @@
+{
+  "name": "bot-test-lid",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "latest",
+    "pino": "^8.21.0",
+    "qrcode-terminal": "^0.12.0",
+    "whispa-lid": "github:ScriptNex/whispa-lid"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
