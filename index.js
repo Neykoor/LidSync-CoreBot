@@ -16,7 +16,9 @@ async function start() {
     console.log("[Bot] Iniciado y listo");
   } catch (err) {
     console.error("[Bot] Error fatal en inicio:", err);
-    await store.save(true).catch(() => {}); 
+    if (store && typeof store.save === 'function') {
+      await store.save(true).catch(() => {}); 
+    }
     process.exit(1);
   }
 }
