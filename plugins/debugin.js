@@ -35,10 +35,11 @@ export default {
       const respuesta = esLid
         ? `✅ *LID Resuelto*\n\n` +
           `*Input:* \`${target}\`\n` +
-          `*JID:* \`${jidReal}\`\n` +
+          `*JID Limpio:* \`${jidReal}\`\n` +
           `*Número:* wa.me/${numeroLimpio}`
-        : `ℹ️ *Ya era JID*\n\n` +
+        : `ℹ️ *Información del Contacto*\n\n` +
           `*Input:* \`${target}\`\n` +
+          `*JID Limpio:* \`${jidReal}\`\n` +
           `*Número:* wa.me/${numeroLimpio}`;
 
       await reply(respuesta);
