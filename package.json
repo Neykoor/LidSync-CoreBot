@@ -1,5 +1,5 @@
 {
-  "name": "LidSync-CoreBot",
+  "name": "lidsync-corebot",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
@@ -11,7 +11,7 @@
     "@whiskeysockets/baileys": "latest",
     "pino": "^8.21.0",
     "qrcode-terminal": "^0.12.0",
-    "lidsync": "github:Neykoor/LidSync"
+    "lidsync": "git+https://github.com/Neykoor/LidSync.git"
   },
   "engines": {
     "node": ">=18.0.0"
