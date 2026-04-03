@@ -1,6 +1,6 @@
 import { connectToWhatsApp } from "./connection.js";
 import { loadEvents } from "./loader.js";
-import { pluginLid } from "whispa-lid";
+import { pluginLid } from "lidsync";
 import store from "./lib/store.js";
 
 async function start() {
