@@ -33,8 +33,9 @@ export default {
       for (const [lid, jidReal] of resultados) {
         if (jidReal) {
           resueltos++;
-          const numeroLimpio = jidReal.split('@')[0];
-          textoSalida += `✅ \`${lid}\` ➔ wa.me/${numeroLimpio}\n`;
+          const numeroLimpio = jidReal.split('@')[0].split(':')[0];
+          const jidLimpio = `${numeroLimpio}@s.whatsapp.net`;
+          textoSalida += `✅ \`${lid}\` ➔ \`${jidLimpio}\`\n`;
         } else {
           fallidos++;
           textoSalida += `❌ \`${lid}\` ➔ No encontrado\n`;
