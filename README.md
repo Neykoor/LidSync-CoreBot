@@ -1,7 +1,7 @@
 ## ✨ LidSync-CoreBot
 
 <p align="center">
-  <img src="https://files.catbox.moe/sijp2f.gif" width="100%" />
+  <img src="https://files.catbox.moe/m28b4w.gif" width="100%" />
 </p>
 
 <p align="center">
