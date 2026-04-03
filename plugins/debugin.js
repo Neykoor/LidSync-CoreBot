@@ -1,7 +1,7 @@
 export default {
   command: "debugin",
   description: "Resuelve un LID a número de teléfono",
-  execute: async ({ sock, msg, chatId }) => {
+  execute: async ({ sock, msg, chatId, reply }) => {
     
     const sender = msg.key.participant || msg.key.remoteJid || "";
     
@@ -12,21 +12,12 @@ export default {
     const target = mentionedJid[0] || quoted || sender;
 
     if (!target) {
-      await sock.sendMessage(
-        chatId,
-        { text: "❌ No se detectó objetivo. Menciona un usuario o responde a un mensaje." },
-        { quoted: msg }
-      );
+      await reply("❌ No se detectó objetivo. Menciona un usuario o responde a un mensaje.");
       return;
     }
 
-  
     if (!target.includes('@')) {
-      await sock.sendMessage(
-        chatId,
-        { text: `❌ ID inválido: ${target}` },
-        { quoted: msg }
-      );
+      await reply(`❌ ID inválido: ${target}`);
       return;
     }
 
@@ -34,11 +25,7 @@ export default {
       const jidReal = await sock.lid.resolve(target);
       
       if (!jidReal) {
-        await sock.sendMessage(
-          chatId,
-          { text: `❌ No se encontró número real vinculado a:\n\`${target}\`` },
-          { quoted: msg }
-        );
+        await reply(`❌ No se encontró número real vinculado a:\n\`${target}\``);
         return;
       }
 
@@ -54,19 +41,11 @@ export default {
           `*Input:* \`${target}\`\n` +
           `*Número:* wa.me/${numeroLimpio}`;
 
-      await sock.sendMessage(
-        chatId,
-        { text: respuesta },
-        { quoted: msg }
-      );
+      await reply(respuesta);
       
     } catch (error) {
       console.error(`[Debugin] Error resolviendo ${target}:`, error);
-      await sock.sendMessage(
-        chatId,
-        { text: `⚠️ *Error interno*\n\`\`\`${error.message}\`\`\`` },
-        { quoted: msg }
-      );
+      await reply(`⚠️ *Error interno*\n\`\`\`${error.message}\`\`\``);
     }
   }
 };
