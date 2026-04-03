@@ -1,5 +1,5 @@
 {
-  "name": "bot-test-lid",
+  "name": "LidSync-CoreBot",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
@@ -11,7 +11,7 @@
     "@whiskeysockets/baileys": "latest",
     "pino": "^8.21.0",
     "qrcode-terminal": "^0.12.0",
-    "whispa-lid": "github:ScriptNex/whispa-lid"
+    "lidsync": "github:Neykoor/LidSync"
   },
   "engines": {
     "node": ">=18.0.0"
