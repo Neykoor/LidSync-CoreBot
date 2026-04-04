@@ -2,43 +2,167 @@ import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } from "
 import qrcode from "qrcode-terminal";
 import pino from "pino";
 
-export async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState("auth_session");
-  const { version } = await fetchLatestBaileysVersion();
+let isConnecting = false;
+let reconnectAttempts = 0;
+let currentSock = null;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 3000;
 
-  const sock = makeWASocket({
-    version,
-    auth: state,
-    printQRInTerminal: false,
-    logger: pino({ level: "silent" }),
-    browser: ["Ubuntu", "Chrome", "22.04.4"]
-  });
+let onReconnectCallback = null;
 
-  sock.ev.on("connection.update", (update) => {
-    const { qr, connection, lastDisconnect } = update;
-    
-    if (qr) {
-      console.log("\nEscanea el siguiente código QR con tu WhatsApp:\n");
-      qrcode.generate(qr, { small: true });
-    }
-    
-    if (connection === "close") {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== 401;
-      
-      console.log(`\nConexión cerrada (Código: ${statusCode}). Reconectando...`);
-      
-      if (shouldReconnect) {
-        connectToWhatsApp();
-      } else {
-        console.log("Sesión inválida. Borra la carpeta 'auth_session' y reinicia.");
-      }
-    } else if (connection === "open") {
-      console.log("\n✅ Bot conectado exitosamente a WhatsApp.");
-    }
-  });
-
-  sock.ev.on("creds.update", saveCreds);
-
-  return sock;
+export function setReconnectCallback(callback) {
+  onReconnectCallback = callback;
 }
+
+export async function connectToWhatsApp() {
+  if (isConnecting) {
+    console.log("⚠️ Conexión en curso, esperando...");
+    return currentSock;
+  }
+
+  isConnecting = true;
+
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState("auth_session");
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+
+    console.log(`🔄 Baileys v${version.join('.')} ${isLatest ? '(latest)' : ''}`);
+
+    const sock = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: false,
+      logger: pino({ level: "silent" }),
+      browser: ["lidsync-corebot", "Chrome", "22.04.4"],
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 30000,
+      emitOwnEvents: true,
+      markOnlineOnConnect: true,
+      syncFullHistory: false,
+      shouldIgnoreJid: (jid) => jid?.includes("broadcast")
+    });
+
+    currentSock = sock;
+
+    sock.ev.on("connection.update", async (update) => {
+      const { qr, connection, lastDisconnect } = update;
+
+      if (qr) {
+        console.clear();
+        console.log("═══════════════════════════════════════");
+        console.log("   📱 lidsync-corebot");
+        console.log("═══════════════════════════════════════");
+        console.log("\n🔐 Escanea el QR con WhatsApp:\n");
+        qrcode.generate(qr, { small: true });
+        console.log("\n⏳ Esperando...");
+        console.log("═══════════════════════════════════════");
+        return;
+      }
+
+      if (connection) {
+        const timestamp = new Date().toLocaleTimeString();
+
+        switch (connection) {
+          case "connecting":
+            console.log(`[${timestamp}] 🔄 Conectando...`);
+            break;
+
+          case "open":
+            reconnectAttempts = 0;
+            isConnecting = false;
+            console.clear();
+            console.log("═══════════════════════════════════════");
+            console.log("   ✅ lidsync-corebot ONLINE");
+            console.log("═══════════════════════════════════════");
+            console.log(`🤖 ${sock.user?.name || 'Bot'}`);
+            console.log(`📱 ${sock.user?.id?.split(':')[0] || 'N/A'}`);
+            console.log(`⏰ ${new Date().toLocaleString()}`);
+            console.log("═══════════════════════════════════════");
+
+            try {
+              await sock.sendPresenceUpdate("available");
+            } catch (e) {
+            }
+            break;
+
+          case "close":
+            isConnecting = false;
+            const statusCode = lastDisconnect?.error?.output?.statusCode;
+            const reason = lastDisconnect?.error?.message || "Unknown";
+
+            console.log(`[${timestamp}] ❌ Cerrado (Code: ${statusCode || 'N/A'})`);
+
+            const shouldReconnect = handleDisconnect(statusCode, reason);
+
+            if (shouldReconnect && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+              reconnectAttempts++;
+              console.log(`🔄 Reconectando ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}...`);
+
+              setTimeout(async () => {
+                const newSock = await connectToWhatsApp();
+                if (newSock && onReconnectCallback) {
+                  onReconnectCallback(newSock);
+                }
+              }, RECONNECT_DELAY);
+            } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+              console.log("❌ Máximos intentos alcanzados");
+              process.exit(1);
+            }
+            break;
+        }
+      }
+    });
+
+    sock.ev.on("creds.update", saveCreds);
+
+    sock.ev.on("error", (err) => {
+      if (err.message?.includes("Stream Errored")) {
+        console.error("⚠️ Stream error:", err.message);
+      }
+    });
+
+    return sock;
+
+  } catch (error) {
+    isConnecting = false;
+    console.error("💥 Error crítico:", error.message);
+
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectAttempts++;
+      setTimeout(async () => {
+        const newSock = await connectToWhatsApp();
+        if (newSock && onReconnectCallback) {
+          onReconnectCallback(newSock);
+        }
+      }, RECONNECT_DELAY);
+    }
+    return null;
+  }
+}
+
+function handleDisconnect(statusCode, reason) {
+  if (statusCode === 401) {
+    console.log("🔴 Sesión inválida. Borra 'auth_session' y reinicia.");
+    return false;
+  }
+
+  const temporaryErrors = ["ETIMEDOUT", "ECONNRESET", "ENOTFOUND", "timed out"];
+  if (temporaryErrors.some(e => reason?.includes(e))) {
+    return true;
+  }
+
+  return statusCode !== 401;
+}
+
+export function getCurrentSock() {
+  return currentSock;
+}
+
+export function getConnectionStatus() {
+  return {
+    isConnecting,
+    reconnectAttempts,
+    isOnline: currentSock?.ws?.readyState === 1
+  };
+    }
