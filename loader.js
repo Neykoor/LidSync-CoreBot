@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export async function loadEvents(sock) {
+export async function loadEvents(getSock) {
   const pluginsDir = path.join(__dirname, "plugins");
   const commandMap = new Map();
 
@@ -17,7 +17,7 @@ export async function loadEvents(sock) {
       try {
         const module = await import(`./plugins/${file}`);
         const plugin = module.default || module;
-        
+
         if (!plugin.command || typeof plugin.execute !== "function") {
           console.warn(`[Loader] Plugin inválido: ${file}`);
           continue;
@@ -41,7 +41,9 @@ export async function loadEvents(sock) {
 
   console.log(`[Loader] ${commandMap.size} comandos`);
 
-  sock.ev.on("messages.upsert", async ({ messages, type }) => {
+  const initialSock = getSock();
+
+  initialSock.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
 
     const msg = messages[0];
@@ -59,8 +61,11 @@ export async function loadEvents(sock) {
     const plugin = commandMap.get(command);
     if (!plugin) return;
 
+    const sock = getSock();
+
     const ctx = { 
-      sock, 
+      sock,
+      getSock,
       msg, 
       chatId, 
       text: text.slice(1).trim(), 
@@ -102,10 +107,10 @@ function extractText(message) {
 
 async function sendReply(sock, chatId, content, quotedMsg) {
   const options = quotedMsg?.key ? { quoted: quotedMsg } : {};
-  
+
   if (typeof content === "string") {
     return await sock.sendMessage(chatId, { text: content }, options);
   }
-  
+
   return await sock.sendMessage(chatId, content, options);
 }
