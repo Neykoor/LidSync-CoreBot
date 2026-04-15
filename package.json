@@ -1,11 +1,12 @@
 {
   "name": "lidsync-corebot",
-  "version": "1.0.0",
+  "version": "5.0.0",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "update-lid": "npm install lidsync@git+https://github.com/Neykoor/LidSync.git"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
