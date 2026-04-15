@@ -5,14 +5,16 @@
 </p>
 
 <p align="center">
-  <b>🧪 Bot de prueba oficial para LidSync</b><br>
+  <b>🧪 Bot de prueba oficial para LidSync v5</b><br>
   <sub>Base simple, escalable y lista para desarrollar</sub>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-experimental-orange.svg"/>
+  <img src="https://img.shields.io/badge/LidSync-v5.0.0-purple.svg"/>
   <img src="https://img.shields.io/badge/base-simple-blue.svg"/>
   <img src="https://img.shields.io/badge/purpose-testing-green.svg"/>
+  <img src="https://img.shields.io/badge/v6-en%20desarrollo-yellow.svg"/>
 </p>
 
 ---
@@ -21,16 +23,31 @@
 
 **LidSync-CoreBot** es un bot de WhatsApp creado principalmente para **probar y demostrar el funcionamiento de la librería LidSync**.
 
-Además, funciona como una **base simple y escalable** que puedes usar para desarrollar tu propio bot.
+Además, funciona como una **base simple y escalable** que puedes usar para desarrollar tu propio bot sin preocuparte por los números ocultos.
+
+---
+
+## 🌟 Potenciado por LidSync v5
+
+Este CoreBot ya viene configurado de fábrica con la última tecnología de **LidSync v5**, incluyendo:
+
+- 🧠 **Auto-Aprendizaje Pasivo:** El bot aprende las identidades automáticamente sin que tengas que programar nada.
+- ⚡ **Caché LRU:** Gestión inteligente de memoria RAM para servidores pequeños.
+- 💾 **Store de Persistencia:** Los usuarios descubiertos se guardan en `database/store.json` y sobreviven a los reinicios.
+- 🧹 **Normalización Automática:** El bot limpia los JIDs complejos (ej: `521xxx:1@s.whatsapp.net` ➔ `521xxx@s.whatsapp.net`).
+- 🚀 **Resolución en Lote:** Capacidad de escanear grupos enteros en segundos usando `sock.lid.resolveBatch()`.
+
+> ⚠️ **REGLA DE ORO DEL AUTO-APRENDIZAJE:**
+> Por limitaciones del protocolo de WhatsApp, la librería solo puede descubrir y resolver el número real de un usuario oculto (`@lid`) **únicamente cuando ese usuario envía un mensaje, un sticker o un emoji** al chat donde está el bot. Si un usuario entra a un grupo y se queda "fantasma" (nunca interactúa), su número no podrá ser resuelto.
 
 ---
 
 ## 🎯 Propósito
 
-- 🧪 Probar la resolución de **LID → JID**
-- 🔍 Ver cómo LidSync funciona en tiempo real
-- ⚙️ Servir como ejemplo práctico de integración
-- 🚀 Ser una base para proyectos más grandes
+- 🧪 Probar la resolución de **LID → JID** en tiempo real.
+- 🔍 Ver la efectividad de la memoria Caché y el Store.
+- ⚙️ Servir como ejemplo práctico de integración en `loader.js` y `handler.js`.
+- 🚀 Ser una base sólida para proyectos más grandes.
 
 ---
 
@@ -40,27 +57,28 @@ Este bot fue creado principalmente para pruebas:
 
 > ❗ **Testing primero, producción después**
 
-- Código simple y fácil de entender  
-- Sin sobrecarga de funciones innecesarias  
-- Preparado para que lo expandas a tu manera  
+- Código simple y fácil de entender.
+- Sin sobrecarga de funciones innecesarias.
+- Viene con plugins de ejemplo (`debugin.js` y `extraergrupo.js`).
+- Preparado para que lo expandas a tu manera.
 
 ---
 
 ## 🚀 ¿Qué puedes hacer con este bot?
 
-✔ Usarlo como base para tu propio bot  
-✔ Crear comandos personalizados  
-✔ Integrar sistemas (IA, juegos, RPG, etc.)  
-✔ Expandir su estructura fácilmente  
-✔ Convertirlo en un bot completo  
+✔ Usarlo como base para tu propio bot.  
+✔ Crear comandos personalizados con su `Loader` rápido.  
+✔ Integrar sistemas (IA, juegos, RPG, etc.).  
+✔ Extraer números de grupos enteros de forma masiva.  
+✔ Convertirlo en un bot completo a prueba de números ocultos.  
 
 ---
 
 ## ⚙️ Tecnologías usadas
 
 - 📦 **Baileys** (`@whiskeysockets/baileys`)
-- 🔗 **LidSync**
-- 🟢 **Node.js**
+- 🔗 **LidSync** (`v5.0.0`)
+- 🟢 **Node.js** (`>=18.0.0`)
 
 ---
 
@@ -70,24 +88,32 @@ Este bot fue creado principalmente para pruebas:
 npm install
 ```
 
+*(Si actualizas la librería LidSync desde GitHub, puedes usar `npm run update-lid`)*
+
 ---
 
 ## ▶️ Ejecución
 
 ```bash
-node index.js
+npm start
 ```
 
 ---
 
 ## 🔗 Relación con LidSync
 
-Este bot utiliza **LidSync** para resolver identidades ocultas de WhatsApp.
+Este bot utiliza **LidSync** inyectado directamente en el objeto de conexión de Baileys. Gracias al nuevo contexto, en tus plugins nunca tendrás que lidiar con LIDs.
 
-Ejemplo:
+Ejemplo interno en el CoreBot:
 
 ```js
-const jid = await sock.lid.resolve("usuario@lid")
+// El sender ya viene limpio y resuelto gracias a LidSync v5
+export default {
+  command: "ping",
+  execute: async ({ sender, reply }) => {
+    await reply(`¡Hola! Tu número real es: ${sender}`);
+  }
+};
 ```
 
 ---
@@ -96,9 +122,17 @@ const jid = await sock.lid.resolve("usuario@lid")
 
 Este bot es ideal si quieres:
 
-- Aprender cómo funciona LidSync  
-- Probar la resolución de usuarios ocultos  
-- Tener una base lista para desarrollar  
+- Aprender cómo funciona LidSync
+- Probar la resolución de usuarios ocultos en tiempo real
+- Tener una base lista para desarrollar con v5
+
+---
+
+## 🔮 ¿Qué viene después? — LidSync v6
+
+> 🚧 **LidSync v6 está actualmente en desarrollo.**
+
+La próxima versión mayor de la librería ya está en camino. Se están trabajando mejoras profundas en rendimiento, cobertura de casos edge y nuevas APIs. Mantente atento al repositorio para novedades.
 
 ---
 
