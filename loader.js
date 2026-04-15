@@ -1,8 +1,24 @@
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
+import { jidNormalizedUser } from "@whiskeysockets/baileys";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+async function getAllFiles(dirPath, arrayOfFiles = []) {
+  const files = await fs.readdir(dirPath);
+  for (const file of files) {
+    if (file.startsWith("_")) continue;
+    const fullPath = path.join(dirPath, file);
+    const stat = await fs.stat(fullPath);
+    if (stat.isDirectory()) {
+      await getAllFiles(fullPath, arrayOfFiles);
+    } else if (file.endsWith(".js")) {
+      arrayOfFiles.push(fullPath);
+    }
+  }
+  return arrayOfFiles;
+}
 
 export async function loadEvents(getSock) {
   const pluginsDir = path.join(__dirname, "plugins");
@@ -10,27 +26,36 @@ export async function loadEvents(getSock) {
 
   try {
     await fs.access(pluginsDir);
-    const files = (await fs.readdir(pluginsDir))
-      .filter(f => f.endsWith(".js") && !f.startsWith("_"));
+    const files = await getAllFiles(pluginsDir);
 
     for (const file of files) {
       try {
-        const module = await import(`./plugins/${file}`);
+        const fileUrl = `${pathToFileURL(file).href}?t=${Date.now()}`;
+        const module = await import(fileUrl);
         const plugin = module.default || module;
 
         if (!plugin.command || typeof plugin.execute !== "function") {
-          console.warn(`[Loader] Plugin inválido: ${file}`);
+          console.warn(`[Loader] Plugin inválido: ${path.basename(file)}`);
           continue;
         }
 
-        if (commandMap.has(plugin.command)) {
-          console.warn(`[Loader] Duplicado: ${plugin.command}`);
-        }
+        const nombres = Array.isArray(plugin.command) ? plugin.command : [plugin.command];
+        const aliases = Array.isArray(plugin.alias) ? plugin.alias : (Array.isArray(plugin.aliases) ? plugin.aliases : []);
+        const triggers = [...nombres, ...aliases];
 
-        commandMap.set(plugin.command, plugin);
-        console.log(`[Loader] ${plugin.command} (${file})`);
+        for (const trigger of triggers) {
+          if (!trigger?.trim()) continue;
+          const key = trigger.toLowerCase().trim();
+
+          if (commandMap.has(key) && nombres.includes(trigger)) {
+            console.warn(`[Loader] Duplicado: ${key}`);
+            continue;
+          }
+
+          commandMap.set(key, plugin);
+        }
       } catch (err) {
-        console.error(`[Loader] Error ${file}:`, err.message);
+        console.error(`[Loader] Error ${path.basename(file)}:`, err.message);
       }
     }
   } catch (err) {
@@ -39,7 +64,7 @@ export async function loadEvents(getSock) {
     }
   }
 
-  console.log(`[Loader] ${commandMap.size} comandos`);
+  console.log(`[Loader] ${commandMap.size} llaves cargadas (comandos+alias)`);
 
   const initialSock = getSock();
 
@@ -47,7 +72,7 @@ export async function loadEvents(getSock) {
     if (type !== "notify") return;
 
     const msg = messages[0];
-    if (!msg?.message || msg.key.fromMe) return;
+    if (!msg?.message || msg.key.fromMe || msg.key.remoteJid === 'status@broadcast') return;
 
     const text = extractText(msg.message);
     if (!text?.startsWith(".")) return;
@@ -63,11 +88,22 @@ export async function loadEvents(getSock) {
 
     const sock = getSock();
 
+    let sender = msg.key.participant || chatId;
+    sender = jidNormalizedUser(sender);
+
+    if (sock.lid?.resolve && sender.endsWith('@lid')) {
+        const resolved = await sock.lid.resolve(sender);
+        if (resolved) {
+            sender = jidNormalizedUser(resolved);
+        }
+    }
+
     const ctx = { 
       sock,
       getSock,
       msg, 
       chatId, 
+      sender,
       text: text.slice(1).trim(), 
       args, 
       reply: (content) => sendReply(sock, chatId, content, msg)
@@ -93,8 +129,8 @@ function extractText(message) {
     "documentMessage.caption"
   ];
 
-  for (const path of types) {
-    const parts = path.split(".");
+  for (const p of types) {
+    const parts = p.split(".");
     let value = message;
     for (const part of parts) {
       value = value?.[part];
