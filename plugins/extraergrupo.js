@@ -1,14 +1,18 @@
 export default {
-  command: "extraer",
-  description: "Escanea el grupo y resuelve todos los números ocultos (LIDs)",
-  execute: async ({ sock, msg, chatId }) => {
+  command: ["extraer", "scanlids"],
+  description: "Escanea el grupo y resuelve todos los números ocultos (LIDs) en lote",
+  execute: async ({ sock, msg, chatId, reply }) => {
+    
     if (!chatId.endsWith('@g.us')) {
-      await sock.sendMessage(chatId, { text: "❌ Este comando solo se puede usar en grupos." }, { quoted: msg });
-      return;
+      return await reply("❌ Este comando solo se puede usar dentro de grupos.");
+    }
+
+    if (!sock.lid) {
+      return await reply("❌ La librería LidSync no está inyectada en este socket.");
     }
 
     try {
-      await sock.sendMessage(chatId, { text: "⏳ *Escaneando participantes del grupo...*" }, { quoted: msg });
+      await reply("⏳ *Escaneando participantes del grupo...*");
 
       const metadata = await sock.groupMetadata(chatId);
       const participantes = metadata.participants;
@@ -18,11 +22,10 @@ export default {
         .filter(id => id.endsWith('@lid'));
 
       if (lidsEncontrados.length === 0) {
-        await sock.sendMessage(chatId, { text: "✅ No hay números ocultos en este grupo. Todos muestran su JID real." }, { quoted: msg });
-        return;
+        return await reply("✅ No hay números ocultos en este grupo. Todos muestran su JID real.");
       }
 
-      await sock.sendMessage(chatId, { text: `🔍 Se encontraron *${lidsEncontrados.length}* LIDs. Resolviendo en lote...` }, { quoted: msg });
+      await reply(`🔍 Se encontraron *${lidsEncontrados.length}* LIDs. Resolviendo en lote, esto puede tomar unos segundos...`);
 
       const resultados = await sock.lid.resolveBatch(lidsEncontrados, { concurrencia: 5 });
 
@@ -33,22 +36,20 @@ export default {
       for (const [lid, jidReal] of resultados) {
         if (jidReal) {
           resueltos++;
-          const numeroLimpio = jidReal.split('@')[0].split(':')[0];
-          const jidLimpio = `${numeroLimpio}@s.whatsapp.net`;
-          textoSalida += `✅ \`${lid}\` ➔ \`${jidLimpio}\`\n`;
+          textoSalida += `✅ \`${lid}\` ➔ \`${jidReal}\`\n`;
         } else {
           fallidos++;
           textoSalida += `❌ \`${lid}\` ➔ No encontrado\n`;
         }
       }
 
-      textoSalida += `\n📈 *Resumen:*\n- Resueltos: ${resueltos}\n- No encontrados: ${fallidos}`;
+      textoSalida += `\n📈 *Resumen:*\n- Total detectados: ${lidsEncontrados.length}\n- Resueltos: ${resueltos}\n- Fallidos: ${fallidos}`;
 
-      await sock.sendMessage(chatId, { text: textoSalida }, { quoted: msg });
+      await reply(textoSalida);
 
     } catch (error) {
-      console.error("[Extraer] Error escaneando grupo:", error);
-      await sock.sendMessage(chatId, { text: `⚠️ *Error interno escaneando el grupo*\n\`\`\`${error.message}\`\`\`` }, { quoted: msg });
+      console.error("[Extraer] Error escaneando grupo:", error.message);
+      await reply(`⚠️ *Error interno escaneando el grupo*\n\`\`\`${error.message}\`\`\``);
     }
   }
 };
