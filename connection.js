@@ -1,4 +1,4 @@
-import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } from "@whiskeysockets/baileys";
+import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import qrcode from "qrcode-terminal";
 import pino from "pino";
 
@@ -30,10 +30,13 @@ export async function connectToWhatsApp() {
 
     const sock = makeWASocket({
       version,
-      auth: state,
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" }))
+      },
       printQRInTerminal: false,
       logger: pino({ level: "silent" }),
-      browser: ["lidsync-corebot", "Chrome", "22.04.4"],
+      browser: ["Ubuntu", "Chrome", "22.04.4"],
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
       keepAliveIntervalMs: 30000,
@@ -142,7 +145,7 @@ export async function connectToWhatsApp() {
 }
 
 function handleDisconnect(statusCode, reason) {
-  if (statusCode === 401) {
+  if (statusCode === DisconnectReason.loggedOut) {
     console.log("🔴 Sesión inválida. Borra 'auth_session' y reinicia.");
     return false;
   }
@@ -152,7 +155,7 @@ function handleDisconnect(statusCode, reason) {
     return true;
   }
 
-  return statusCode !== 401;
+  return statusCode !== DisconnectReason.loggedOut;
 }
 
 export function getCurrentSock() {
@@ -165,4 +168,4 @@ export function getConnectionStatus() {
     reconnectAttempts,
     isOnline: currentSock?.ws?.readyState === 1
   };
-    }
+}
