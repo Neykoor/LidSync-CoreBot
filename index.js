@@ -26,12 +26,10 @@ async function start() {
       return;
     }
 
+    sock = pluginLid(sock, { store });
     currentSock = sock;
 
     store.bind(sock.ev);
-
-    sock = pluginLid(sock, { store });
-    currentSock = sock;
 
     if (!eventsLoaded) {
       await loadEvents(getSock);
@@ -42,12 +40,10 @@ async function start() {
     setReconnectCallback(async (newSock) => {
       console.log("[Bot] 🔄 Reconexión detectada...");
 
-      currentSock = newSock;
-
-      store.bind(newSock.ev);
-
       const updatedSock = pluginLid(newSock, { store });
       currentSock = updatedSock;
+
+      store.bind(updatedSock.ev);
 
       console.log("[Bot] ✅ Reconexión completada, mismo listener, socket nuevo");
     });
@@ -73,7 +69,27 @@ if (store && typeof store.on === 'function') {
   });
 }
 
+const gracefulShutdown = async () => {
+  console.log("\n[Bot] Apagando de forma segura...");
+  try {
+    if (store && typeof store.close === 'function') {
+      await store.close();
+    } else if (store && typeof store.save === 'function') {
+      await store.save(true);
+    }
+  } catch (e) {}
+  process.exit(0);
+};
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+
+process.on('uncaughtException', (err) => {
+  console.error('[Bot] ⚠️ Error no capturado:', err.message);
+});
+
 export { getSock };
+
 export function getBotSocket() {
   return currentSock;
 }
