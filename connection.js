@@ -1,6 +1,6 @@
 import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
-import qrcode from "qrcode-terminal";
 import pino from "pino";
+import readline from "readline";
 
 let isConnecting = false;
 let reconnectAttempts = 0;
@@ -9,6 +9,9 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 3000;
 
 let onReconnectCallback = null;
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const question = (texto) => new Promise((resolver) => rl.question(texto, resolver));
 
 export function setReconnectCallback(callback) {
   onReconnectCallback = callback;
@@ -48,27 +51,44 @@ export async function connectToWhatsApp() {
 
     currentSock = sock;
 
-    sock.ev.on("connection.update", async (update) => {
-      const { qr, connection, lastDisconnect } = update;
+    if (!sock.authState.creds.registered) {
+      console.clear();
+      console.log("═══════════════════════════════════════");
+      console.log("   📱 Vinculación por Código (Pairing)");
+      console.log("═══════════════════════════════════════\n");
+      const numero = await question("Ingresa el número de WhatsApp del bot (con código de país, ej. 521...): ");
+      const numeroLimpio = numero.replace(/[^0-9]/g, "");
 
-      if (qr) {
-        console.clear();
-        console.log("═══════════════════════════════════════");
-        console.log("   📱 lidsync-corebot");
-        console.log("═══════════════════════════════════════");
-        console.log("\n🔐 Escanea el QR con WhatsApp:\n");
-        qrcode.generate(qr, { small: true });
-        console.log("\n⏳ Esperando...");
-        console.log("═══════════════════════════════════════");
-        return;
-      }
+      setTimeout(async () => {
+        try {
+          const codigo = await sock.requestPairingCode(numeroLimpio);
+          const codigoFormateado = codigo?.match(/.{1,4}/g)?.join("-") || codigo;
+          
+          console.log("\n🔑 Tu código de vinculación es:");
+          console.log(`\n       ${codigoFormateado}\n`);
+          console.log("Pasos:");
+          console.log("1. Abre WhatsApp en tu celular principal.");
+          console.log("2. Ve a Dispositivos Vinculados > Vincular un dispositivo.");
+          console.log("3. Toca 'Vincular usando el número de teléfono'.");
+          console.log("4. Ingresa el código de arriba.\n");
+          console.log("⏳ Esperando vinculación...");
+        } catch (error) {
+          console.error("❌ Error al solicitar el código:", error.message);
+        }
+      }, 3000);
+    }
+
+    sock.ev.on("connection.update", async (update) => {
+      const { connection, lastDisconnect } = update;
 
       if (connection) {
         const timestamp = new Date().toLocaleTimeString();
 
         switch (connection) {
           case "connecting":
-            console.log(`[${timestamp}] 🔄 Conectando...`);
+            if (sock.authState.creds.registered) {
+                console.log(`[${timestamp}] 🔄 Conectando...`);
+            }
             break;
 
           case "open":
