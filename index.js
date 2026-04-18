@@ -1,4 +1,4 @@
-import { connectToWhatsApp, setReconnectCallback, getCurrentSock } from "./connection.js";
+import { connectToWhatsApp, setReconnectCallback } from "./connection.js";
 import { loadEvents } from "./loader.js";
 import { pluginLid } from "lidsync";
 import store from "./lib/store.js";
@@ -7,7 +7,7 @@ let currentSock = null;
 let isRestarting = false;
 let eventsLoaded = false;
 
-const getSock = () => currentSock;
+export const getSock = () => currentSock;
 
 async function start() {
   try {
@@ -88,11 +88,9 @@ process.on('uncaughtException', (err) => {
   console.error('[Bot] ⚠️ Error no capturado:', err.message);
 });
 
-export { getSock };
-
-export function getBotSocket() {
-  return currentSock;
-}
+process.on('unhandledRejection', (reason) => {
+  console.error('[Bot] ⚠️ Promesa rechazada no capturada:', reason);
+});
 
 export function getBotStatus() {
   return {
