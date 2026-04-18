@@ -35,7 +35,6 @@ export async function loadEvents(getSock) {
         const plugin = module.default || module;
 
         if (!plugin.command || typeof plugin.execute !== "function") {
-          console.warn(`[Loader] Plugin inválido: ${path.basename(file)}`);
           continue;
         }
 
@@ -48,7 +47,6 @@ export async function loadEvents(getSock) {
           const key = trigger.toLowerCase().trim();
 
           if (commandMap.has(key) && nombres.includes(trigger)) {
-            console.warn(`[Loader] Duplicado: ${key}`);
             continue;
           }
 
@@ -88,13 +86,14 @@ export async function loadEvents(getSock) {
 
     const sock = getSock();
 
-    let sender = msg.key.participant || chatId;
-    sender = jidNormalizedUser(sender);
+    let sender = jidNormalizedUser(msg.key.participant || chatId);
+    let lid = null;
 
     if (sock.lid?.resolve && sender.endsWith('@lid')) {
+        lid = sender;
         const resolved = await sock.lid.resolve(sender);
         if (resolved) {
-            sender = jidNormalizedUser(resolved);
+            sender = resolved;
         }
     }
 
@@ -104,6 +103,7 @@ export async function loadEvents(getSock) {
       msg, 
       chatId, 
       sender,
+      lid,
       text: text.slice(1).trim(), 
       args, 
       reply: (content) => sendReply(sock, chatId, content, msg)
