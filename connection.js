@@ -52,28 +52,34 @@ export async function connectToWhatsApp() {
     currentSock = sock;
 
     if (!sock.authState.creds.registered) {
-      console.clear();
-      console.log("═══════════════════════════════════════");
-      console.log("   📱 Vinculación por Código (Pairing)");
-      console.log("═══════════════════════════════════════\n");
-      const numero = await question("Ingresa el número de WhatsApp del bot (con código de país, ej. 521...): ");
-      const numeroLimpio = numero.replace(/[^0-9]/g, "");
-
       setTimeout(async () => {
+        console.clear();
+        console.log("═══════════════════════════════════════");
+        console.log("   📱 VINCULACIÓN POR CÓDIGO");
+        console.log("═══════════════════════════════════════\n");
+        console.log("⚠️  Se requiere el número de teléfono para vincular el bot.");
+        console.log("📌  Usa el formato internacional SIN el símbolo '+'.");
+        console.log("👉  Ejemplo: 5215512345678\n");
+        
+        const numero = await question("Ingresa el número aquí y presiona ENTER: ");
+        const numeroLimpio = numero.replace(/[^0-9]/g, "");
+
+        console.log("\n⏳ Solicitando código a WhatsApp, por favor espera...");
+
         try {
           const codigo = await sock.requestPairingCode(numeroLimpio);
           const codigoFormateado = codigo?.match(/.{1,4}/g)?.join("-") || codigo;
           
-          console.log("\n🔑 Tu código de vinculación es:");
+          console.log("\n🔑 TU CÓDIGO DE VINCULACIÓN ES:");
           console.log(`\n       ${codigoFormateado}\n`);
           console.log("Pasos:");
-          console.log("1. Abre WhatsApp en tu celular principal.");
+          console.log("1. Abre WhatsApp en tu celular.");
           console.log("2. Ve a Dispositivos Vinculados > Vincular un dispositivo.");
           console.log("3. Toca 'Vincular usando el número de teléfono'.");
           console.log("4. Ingresa el código de arriba.\n");
-          console.log("⏳ Esperando vinculación...");
+          console.log("⏳ Esperando vinculación en el celular...");
         } catch (error) {
-          console.error("❌ Error al solicitar el código:", error.message);
+          console.error("\n❌ Error al solicitar el código:", error.message);
         }
       }, 3000);
     }
