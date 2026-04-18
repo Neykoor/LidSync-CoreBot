@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/lidsync"><img src="https://img.shields.io/npm/v/lidsync.svg?style=flat-square&color=blue" alt="NPM Version" /></a>
   <img src="https://img.shields.io/badge/status-experimental-orange.svg"/>
-  <img src="https://img.shields.io/badge/LidSync-v5.0.0-purple.svg"/>
   <img src="https://img.shields.io/badge/base-simple-blue.svg"/>
   <img src="https://img.shields.io/badge/purpose-testing-green.svg"/>
   <img src="https://img.shields.io/badge/v6-en%20desarrollo-yellow.svg"/>
@@ -21,7 +21,7 @@
 
 ## ✨ ¿Qué es LidSync-CoreBot?
 
-**LidSync-CoreBot** es un bot de WhatsApp creado principalmente para **probar y demostrar el funcionamiento de la librería LidSync**.
+**LidSync-CoreBot** es un bot de WhatsApp creado principalmente para **probar y demostrar el funcionamiento de la librería oficial [LidSync en npm](https://www.npmjs.com/package/lidsync)**.
 
 Además, funciona como una **base simple y escalable** que puedes usar para desarrollar tu propio bot sin preocuparte por los números ocultos.
 
@@ -77,18 +77,22 @@ Este bot fue creado principalmente para pruebas:
 ## ⚙️ Tecnologías usadas
 
 - 📦 **Baileys** (`@whiskeysockets/baileys`)
-- 🔗 **LidSync** (`v5.0.0`)
+- 🔗 **LidSync** (`npm install lidsync`)
 - 🟢 **Node.js** (`>=18.0.0`)
 
 ---
 
 ## 📦 Instalación
 
+1. Clona este repositorio e instala las dependencias base:
 ```bash
 npm install
 ```
 
-*(Si actualizas la librería LidSync desde GitHub, puedes usar `npm run update-lid`)*
+2. *(Opcional)* Si quieres asegurarte de tener la versión más reciente de LidSync desde npm:
+```bash
+npm install lidsync@latest
+```
 
 ---
 
@@ -122,9 +126,9 @@ export default {
 
 Este bot es ideal si quieres:
 
-- Aprender cómo funciona LidSync
-- Probar la resolución de usuarios ocultos en tiempo real
-- Tener una base lista para desarrollar con v5
+- Aprender cómo funciona la librería LidSync de npm.
+- Probar la resolución de usuarios ocultos en tiempo real.
+- Tener una base lista para desarrollar con la v5.
 
 ---
 
@@ -132,7 +136,7 @@ Este bot es ideal si quieres:
 
 > 🚧 **LidSync v6 está actualmente en desarrollo.**
 
-La próxima versión mayor de la librería ya está en camino. Se están trabajando mejoras profundas en rendimiento, cobertura de casos edge y nuevas APIs. Mantente atento al repositorio para novedades.
+La próxima versión mayor de la librería oficial ya está en camino. Se están trabajando mejoras profundas en rendimiento, cobertura de casos edge y nuevas APIs. Mantente atento a npm y al repositorio para novedades.
 
 ---
 
