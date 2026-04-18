@@ -46,7 +46,7 @@ Este CoreBot ya viene configurado de fábrica con la última tecnología de **Li
 
 - 🧪 Probar la resolución de **LID → JID** en tiempo real.
 - 🔍 Ver la efectividad de la memoria Caché y el Store.
-- ⚙️ Servir como ejemplo práctico de integración en `loader.js` y `handler.js`.
+- ⚙️ Servir como ejemplo práctico de integración en `loader.js`.
 - 🚀 Ser una base sólida para proyectos más grandes.
 
 ---
