@@ -15,7 +15,8 @@ export default {
           `✅ *LidSync Status*\n\n` +
           `*Módulo:* Operativo 🟢\n` +
           `*Prueba Resolve:* ${resTest ? "Éxito ✅" : "Fallido ❌"}\n` +
-          `*Cache Activa:* ${stats?.size || 0}/${stats?.maxSize || 0}`
+          `*Cache Activa:* ${stats?.cache?.size || 0}/${stats?.cache?.maxSize || 0}\n` +
+          `*Índice:* ${stats?.index?.size || 0}/${stats?.index?.maxSize || 0}`
         );
       } catch (error) {
         return await reply(`❌ *Fallo en LidSync:*\n\`\`\`${error.message}\`\`\``);
@@ -25,13 +26,17 @@ export default {
     if (args[0] === "stats") {
       const stats = sock.lid.getStats();
       return await reply(
-        `📊 *LidSync v5 Stats*\n\n` +
-        `*Tamaño Cache:* ${stats.size}/${stats.maxSize}\n` +
-        `*Aciertos:* ${stats.hits}\n` +
-        `*Fallos:* ${stats.misses}\n` +
-        `*Efectividad:* ${stats.hitRate}\n` +
-        `*Expirados:* ${stats.expirations}\n` +
-        `*RAM Estimada:* ${stats.memoryEstimate}`
+        `📊 *LidSync v6 Stats*\n\n` +
+        `*-- CACHÉ LRU --*\n` +
+        `*Tamaño:* ${stats.cache.size}/${stats.cache.maxSize}\n` +
+        `*Aciertos:* ${stats.cache.hits}\n` +
+        `*Fallos:* ${stats.cache.misses}\n` +
+        `*Efectividad:* ${stats.cache.hitRate}\n` +
+        `*Expirados:* ${stats.cache.expirations}\n` +
+        `*RAM Cache:* ${stats.cache.memoryEstimate}\n\n` +
+        `*-- ÍNDICE --*\n` +
+        `*Tamaño:* ${stats.index.size}/${stats.index.maxSize}\n` +
+        `*Sincronizado:* ${stats.sincronizado ? "Sí ✅" : "No ❌"}`
       );
     }
 
@@ -56,14 +61,15 @@ export default {
       const isLid = typeof sock.lid.isResolvable === "function" ? sock.lid.isResolvable(target) : target.endsWith('@lid');
       
       await reply(
-        `${isLid ? "✅ *LID Resuelto*" : "ℹ️ *Información del Contacto*"}\n\n` +
-        `*Input:* \`${target}\`\n` +
-        `*JID Limpio:* \`${jidReal}\`\n` +
-        `*Número:* wa.me/${numeroLimpio}`
+        `${isLid ? "✅ *LID Resuelto*" : "ℹ️ *JID Normal*"}\n\n` +
+        `*LID:* ${target}\n` +
+        `*JID:* ${jidReal}\n` +
+        `*Número:* +${numeroLimpio}\n` +
+        `*Wa.me:* https://wa.me/${numeroLimpio}`
       );
-      
+
     } catch (error) {
-      await reply(`⚠️ *Error interno*\n\`\`\`${error.message}\`\`\``);
+      await reply(`❌ *Error al resolver:*\n\`\`\`${error.message}\`\`\``);
     }
   }
 };
