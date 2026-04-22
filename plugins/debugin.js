@@ -26,7 +26,7 @@ export default {
     if (args[0] === "stats") {
       const stats = sock.lid.getStats();
       return await reply(
-        `📊 *LidSync v6 Stats*\n\n` +
+        `📊 *LidSync v5.0.2 Stats*\n\n` +
         `*-- CACHÉ LRU --*\n` +
         `*Tamaño:* ${stats.cache.size}/${stats.cache.maxSize}\n` +
         `*Aciertos:* ${stats.cache.hits}\n` +
