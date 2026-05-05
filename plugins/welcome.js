@@ -1,3 +1,5 @@
+// plugins/welcome.js
+
 const WELCOME_TEXT = (jid, groupId) => {
   const numero = jid.split("@")[0];
   const grupo = groupId?.split("@")[0] || "el grupo";
@@ -10,11 +12,17 @@ const WELCOME_TEXT = (jid, groupId) => {
   );
 };
 
+const esLid = (id) =>
+  typeof id === "string" &&
+  (id.endsWith("@lid") || id.endsWith("@hosted.lid"));
+
+const esJidResuelto = (id) =>
+  typeof id === "string" && id.endsWith("@s.whatsapp.net");
+
 export default {
-  command: [],       
+  command: [],
   alias: [],
 
-  
   onLoad: (getSock) => {
     const sock = getSock();
 
@@ -24,16 +32,44 @@ export default {
     }
 
     sock.lid.onJoin(async ({ groupId, jid, lid }) => {
-      if (!groupId || !jid) return;
+      if (!groupId) return;
+
+      const currentSock = getSock();
+
+      // Determinar el JID real a usar
+      let jidFinal = jid;
+
+      // Si el jid es un LID o no está resuelto, intentar resolverlo
+      if (!esJidResuelto(jidFinal)) {
+        const candidato = lid || jid;
+
+        if (candidato && currentSock?.lid?.resolve) {
+          try {
+            const resuelto = await currentSock.lid.resolve(candidato);
+            if (resuelto && esJidResuelto(resuelto)) {
+              jidFinal = resuelto;
+            }
+          } catch (err) {
+            console.warn("[welcome] Error al resolver LID:", err.message);
+          }
+        }
+      }
+
+      // Si aún no está resuelto, no podemos armar el mensaje (número desconocido)
+      if (!esJidResuelto(jidFinal)) {
+        console.warn(
+          `[welcome] No se pudo resolver el número para lid: ${lid || jid} en ${groupId}. Bienvenida omitida.`
+        );
+        return;
+      }
 
       try {
-        const currentSock = getSock();
         await currentSock.sendMessage(groupId, {
-          text: WELCOME_TEXT(jid, groupId),
+          text: WELCOME_TEXT(jidFinal, groupId),
         });
 
         console.log(
-          `[welcome] Bienvenida enviada → jid: ${jid}${lid ? ` (lid: ${lid})` : ""} en ${groupId}`
+          `[welcome] Bienvenida enviada → jid: ${jidFinal}${lid ? ` (lid: ${lid})` : ""} en ${groupId}`
         );
       } catch (err) {
         console.error("[welcome] Error al enviar bienvenida:", err.message);
