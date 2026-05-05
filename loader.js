@@ -5,6 +5,18 @@ import { jidNormalizedUser } from "@whiskeysockets/baileys";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const EXECUTE_TIMEOUT_MS = 15000;
+const SEND_TIMEOUT_MS = 10000;
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`[Timeout] ${label} superó ${ms}ms`)), ms)
+    )
+  ]);
+}
+
 async function getAllFiles(dirPath, arrayOfFiles = []) {
   const files = await fs.readdir(dirPath);
   for (const file of files) {
@@ -34,22 +46,20 @@ export async function loadEvents(getSock) {
         const module = await import(fileUrl);
         const plugin = module.default || module;
 
-        if (!plugin.command || typeof plugin.execute !== "function") {
-          continue;
-        }
+        if (!plugin.command || typeof plugin.execute !== "function") continue;
 
         const nombres = Array.isArray(plugin.command) ? plugin.command : [plugin.command];
-        const aliases = Array.isArray(plugin.alias) ? plugin.alias : (Array.isArray(plugin.aliases) ? plugin.aliases : []);
+        const aliases = Array.isArray(plugin.alias)
+          ? plugin.alias
+          : Array.isArray(plugin.aliases)
+          ? plugin.aliases
+          : [];
         const triggers = [...nombres, ...aliases];
 
         for (const trigger of triggers) {
           if (!trigger?.trim()) continue;
           const key = trigger.toLowerCase().trim();
-
-          if (commandMap.has(key) && nombres.includes(trigger)) {
-            continue;
-          }
-
+          if (commandMap.has(key) && nombres.includes(trigger)) continue;
           commandMap.set(key, plugin);
         }
       } catch (err) {
@@ -64,13 +74,13 @@ export async function loadEvents(getSock) {
 
   console.log(`[Loader] ${commandMap.size} llaves cargadas (comandos+alias)`);
 
-  const initialSock = getSock();
+  const sock0 = getSock();
 
-  initialSock.ev.on("messages.upsert", async ({ messages, type }) => {
+  sock0.ev.on("messages.upsert", async ({ messages, type }) => {
     if (type !== "notify") return;
 
     const msg = messages[0];
-    if (!msg?.message || msg.key.fromMe || msg.key.remoteJid === 'status@broadcast') return;
+    if (!msg?.message || msg.key.fromMe || msg.key.remoteJid === "status@broadcast") return;
 
     const text = extractText(msg.message);
     if (!text?.startsWith(".")) return;
@@ -93,8 +103,10 @@ export async function loadEvents(getSock) {
     let lid = null;
 
     if (sock.lid?.resolve) {
-      const isParticipantLid = rawParticipant?.endsWith('@lid') || rawParticipant?.endsWith('@hosted.lid');
-      const isAltLid = rawAlt?.endsWith('@lid') || rawAlt?.endsWith('@hosted.lid');
+      const isParticipantLid =
+        rawParticipant?.endsWith("@lid") || rawParticipant?.endsWith("@hosted.lid");
+      const isAltLid =
+        rawAlt?.endsWith("@lid") || rawAlt?.endsWith("@hosted.lid");
 
       if (isParticipantLid) {
         lid = sender;
@@ -107,22 +119,22 @@ export async function loadEvents(getSock) {
       }
     }
 
-    const ctx = { 
+    const ctx = {
       sock,
       getSock,
-      msg, 
-      chatId, 
+      msg,
+      chatId,
       sender,
       lid,
-      text: text.slice(1).trim(), 
-      args, 
+      text: text.slice(1).trim(),
+      args,
       reply: (content) => sendReply(sock, chatId, content, msg)
     };
 
     try {
-      await plugin.execute(ctx);
+      await withTimeout(plugin.execute(ctx), EXECUTE_TIMEOUT_MS, command);
     } catch (err) {
-      console.error(`[Loader] ${command}:`, err);
+      console.error(`[Loader] ${command}:`, err.message);
       await ctx.reply(`❌ ${err.message}`).catch(() => {});
     }
   });
@@ -142,9 +154,7 @@ function extractText(message) {
   for (const p of types) {
     const parts = p.split(".");
     let value = message;
-    for (const part of parts) {
-      value = value?.[part];
-    }
+    for (const part of parts) value = value?.[part];
     if (typeof value === "string") return value;
   }
 
@@ -153,10 +163,11 @@ function extractText(message) {
 
 async function sendReply(sock, chatId, content, quotedMsg) {
   const options = quotedMsg?.key ? { quoted: quotedMsg } : {};
+  const payload = typeof content === "string" ? { text: content } : content;
 
-  if (typeof content === "string") {
-    return await sock.sendMessage(chatId, { text: content }, options);
-  }
-
-  return await sock.sendMessage(chatId, content, options);
+  return withTimeout(
+    sock.sendMessage(chatId, payload, options),
+    SEND_TIMEOUT_MS,
+    "sendReply"
+  );
 }
