@@ -86,15 +86,25 @@ export async function loadEvents(getSock) {
 
     const sock = getSock();
 
-    let sender = jidNormalizedUser(msg.key.participant || chatId);
+    const rawParticipant = msg.key.participant || chatId;
+    const rawAlt = msg.key.participantAlt || msg.key.remoteJidAlt;
+
+    let sender = jidNormalizedUser(rawParticipant);
     let lid = null;
 
-    if (sock.lid?.resolve && sender.endsWith('@lid')) {
+    if (sock.lid?.resolve) {
+      const isParticipantLid = rawParticipant?.endsWith('@lid') || rawParticipant?.endsWith('@hosted.lid');
+      const isAltLid = rawAlt?.endsWith('@lid') || rawAlt?.endsWith('@hosted.lid');
+
+      if (isParticipantLid) {
         lid = sender;
-        const resolved = await sock.lid.resolve(sender);
-        if (resolved) {
-            sender = resolved;
-        }
+        const resolved = await sock.lid.resolve(sender).catch(() => null);
+        if (resolved) sender = resolved;
+      } else if (isAltLid) {
+        lid = jidNormalizedUser(rawAlt);
+        const resolved = await sock.lid.resolve(lid).catch(() => null);
+        if (resolved) sender = resolved;
+      }
     }
 
     const ctx = { 
