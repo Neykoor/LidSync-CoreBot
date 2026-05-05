@@ -1,13 +1,12 @@
 import { connectToWhatsApp, setReconnectCallback } from "./connection.js";
 import { loadEvents } from "./loader.js";
-import { pluginLid, LidDatabase } from "lidsync";
+import { pluginLid } from "lidsync";
 import store from "./lib/store.js";
 
 let currentSock = null;
 let isRestarting = false;
 let eventsLoaded = false;
 let storeBound = false;
-const lidDb = new LidDatabase("lidsync.db");
 
 export const getSock = () => currentSock;
 
@@ -22,7 +21,7 @@ async function start() {
       return;
     }
 
-    sock = pluginLid(sock, { store, db: lidDb });
+    sock = pluginLid(sock, { store });
     currentSock = sock;
 
     if (!storeBound) {
@@ -37,7 +36,7 @@ async function start() {
 
     setReconnectCallback(async (newSock) => {
       if (currentSock?.lid?.destroy) currentSock.lid.destroy();
-      currentSock = pluginLid(newSock, { store, db: lidDb });
+      currentSock = pluginLid(newSock, { store });
     });
 
     isRestarting = false;
@@ -52,7 +51,6 @@ const gracefulShutdown = async () => {
     if (currentSock?.lid?.destroy) currentSock.lid.destroy();
     if (store?.destroy) await store.destroy();
     else if (store?.save) await store.save(true);
-    lidDb.close();
   } catch (e) {}
   process.exit(0);
 };
