@@ -6,6 +6,7 @@ import store from "./lib/store.js";
 let currentSock = null;
 let isRestarting = false;
 let eventsLoaded = false;
+let storeBound = false;
 
 export const getSock = () => currentSock;
 
@@ -29,7 +30,10 @@ async function start() {
     sock = pluginLid(sock, { store });
     currentSock = sock;
 
-    store.bind(sock.ev);
+    if (!storeBound) {
+      store.bind(sock.ev);
+      storeBound = true;
+    }
 
     if (!eventsLoaded) {
       await loadEvents(getSock);
@@ -40,10 +44,12 @@ async function start() {
     setReconnectCallback(async (newSock) => {
       console.log("[Bot] 🔄 Reconexión detectada...");
 
+      if (currentSock?.lid?.destroy) {
+        currentSock.lid.destroy();
+      }
+
       const updatedSock = pluginLid(newSock, { store });
       currentSock = updatedSock;
-
-      store.bind(updatedSock.ev);
 
       console.log("[Bot] ✅ Reconexión completada, mismo listener, socket nuevo");
     });
@@ -55,47 +61,43 @@ async function start() {
     console.error("[Bot] Error fatal:", err);
     isRestarting = false;
 
-    if (store && !store._shutdownBound && typeof store.save === 'function') {
-      await store.save(true).catch(() => {}); 
+    if (store && typeof store.save === "function") {
+      await store.save(true).catch(() => {});
     }
 
     console.log("[Bot] Esperando reconexión automática...");
   }
 }
 
-if (store && typeof store.on === 'function') {
-  store.on('close', async () => {
-    console.log("[Bot] Store cerrado...");
-  });
-}
-
 const gracefulShutdown = async () => {
   console.log("\n[Bot] Apagando de forma segura...");
   try {
-    if (store && typeof store.close === 'function') {
-      await store.close();
-    } else if (store && typeof store.save === 'function') {
+    if (currentSock?.lid?.destroy) currentSock.lid.destroy();
+    if (store && typeof store.destroy === "function") {
+      await store.destroy();
+    } else if (store && typeof store.save === "function") {
       await store.save(true);
     }
   } catch (e) {}
   process.exit(0);
 };
 
-process.on('SIGINT', gracefulShutdown);
-process.on('SIGTERM', gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);
+process.on("SIGTERM", gracefulShutdown);
 
-process.on('uncaughtException', (err) => {
-  console.error('[Bot] ⚠️ Error no capturado:', err.message);
+process.on("uncaughtException", (err) => {
+  console.error("[Bot] ⚠️ Error no capturado:", err.message);
 });
 
-process.on('unhandledRejection', (reason) => {
-  console.error('[Bot] ⚠️ Promesa rechazada no capturada:', reason);
+process.on("unhandledRejection", (reason) => {
+  console.error("[Bot] ⚠️ Promesa rechazada no capturada:", reason);
 });
 
 export function getBotStatus() {
   return {
     isRestarting,
     eventsLoaded,
+    storeBound,
     hasSocket: !!currentSock,
     isOnline: currentSock?.ws?.readyState === 1
   };
