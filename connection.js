@@ -1,6 +1,9 @@
 import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from "@whiskeysockets/baileys";
 import pino from "pino";
 import readline from "readline";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
 
 let isConnecting = false;
 let reconnectAttempts = 0;
@@ -12,6 +15,15 @@ let onReconnectCallback = null;
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const question = (texto) => new Promise((resolver) => rl.question(texto, resolver));
+
+function getLidSyncVersion() {
+  try {
+    const pkg = require("lidsync/package.json");
+    return pkg.version || "?";
+  } catch {
+    return "?";
+  }
+}
 
 export function setReconnectCallback(callback) {
   onReconnectCallback = callback;
@@ -107,6 +119,8 @@ export async function connectToWhatsApp() {
             console.log(`🤖 ${sock.user?.name || 'Bot'}`);
             console.log(`📱 ${sock.user?.id?.split(':')[0] || 'N/A'}`);
             console.log(`⏰ ${new Date().toLocaleString()}`);
+            console.log("═══════════════════════════════════════");
+            console.log(`📦 LidSync v${getLidSyncVersion()} activo`);
             console.log("═══════════════════════════════════════");
 
             try {
