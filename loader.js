@@ -46,7 +46,26 @@ export async function loadEvents(getSock) {
         const module = await import(fileUrl);
         const plugin = module.default || module;
 
-        if (!plugin.command || typeof plugin.execute !== "function") continue;
+        const hasCommand = plugin.command && (
+          Array.isArray(plugin.command)
+            ? plugin.command.length > 0
+            : typeof plugin.command === "string" && plugin.command.trim()
+        );
+        const hasOnLoad = typeof plugin.onLoad === "function";
+
+        if (!hasCommand && !hasOnLoad) continue;
+        if (typeof plugin.execute !== "function") continue;
+
+        // Invocar onLoad para plugins de eventos (welcome, etc.)
+        if (hasOnLoad) {
+          try {
+            plugin.onLoad(getSock);
+          } catch (err) {
+            console.error(`[Loader] onLoad ${path.basename(file)}:`, err.message);
+          }
+        }
+
+        if (!hasCommand) continue; // plugin solo de eventos, sin comandos de texto
 
         const nombres = Array.isArray(plugin.command) ? plugin.command : [plugin.command];
         const aliases = Array.isArray(plugin.alias)
