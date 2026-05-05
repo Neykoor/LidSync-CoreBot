@@ -19,6 +19,79 @@ const esLid = (id) =>
 const esJidResuelto = (id) =>
   typeof id === "string" && id.endsWith("@s.whatsapp.net");
 
+// Intentos de resolución: espera entre cada uno
+const REINTENTOS = [2000, 5000, 10000];
+
+async function resolverConReintentos(getSock, lid) {
+  for (const espera of REINTENTOS) {
+    await new Promise((r) => setTimeout(r, espera));
+
+    const sock = getSock();
+    if (!sock?.lid?.resolve) return null;
+
+    try {
+      const resuelto = await sock.lid.resolve(lid);
+      if (resuelto && esJidResuelto(resuelto)) return resuelto;
+    } catch {}
+  }
+  return null;
+}
+
+async function enviarBienvenida(getSock, jid, groupId, lid) {
+  const sock = getSock();
+  try {
+    await sock.sendMessage(groupId, {
+      text: WELCOME_TEXT(jid, groupId),
+      mentions: [jid],
+    });
+    console.log(
+      `[welcome] Bienvenida enviada → ${jid}${lid ? ` (lid: ${lid})` : ""} en ${groupId}`
+    );
+  } catch (err) {
+    console.error("[welcome] Error al enviar bienvenida:", err.message);
+  }
+}
+
+async function manejarParticipante(getSock, groupId, rawId) {
+  const sock = getSock();
+
+  // Caso 1: JID normal, sin LID
+  if (esJidResuelto(rawId)) {
+    return enviarBienvenida(getSock, rawId, groupId, null);
+  }
+
+  // Caso 2: Es un LID → intentar resolver de inmediato
+  if (esLid(rawId)) {
+    let resuelto = null;
+
+    try {
+      resuelto = await sock?.lid?.resolve(rawId);
+    } catch {}
+
+    if (resuelto && esJidResuelto(resuelto)) {
+      return enviarBienvenida(getSock, resuelto, groupId, rawId);
+    }
+
+    // No resolvió de inmediato → reintentar en background
+    console.log(`[welcome] LID sin resolver, reintentando en background: ${rawId}`);
+
+    resolverConReintentos(getSock, rawId).then((jidFinal) => {
+      if (jidFinal) {
+        enviarBienvenida(getSock, jidFinal, groupId, rawId);
+      } else {
+        console.warn(
+          `[welcome] No se pudo resolver tras reintentos, bienvenida omitida: ${rawId}`
+        );
+      }
+    });
+
+    return;
+  }
+
+  // Caso 3: ID desconocido
+  console.warn(`[welcome] ID no reconocido, bienvenida omitida: ${rawId}`);
+}
+
 export default {
   command: [],
   alias: [],
@@ -26,57 +99,25 @@ export default {
   onLoad: (getSock) => {
     const sock = getSock();
 
-    if (!sock?.lid?.onJoin) {
-      console.warn("[welcome] LidSync no disponible: onJoin no registrado.");
-      return;
-    }
+    sock.ev.on("group-participants.update", async (update) => {
+      const { id: groupId, participants, action } = update;
 
-    sock.lid.onJoin(async ({ groupId, jid, lid }) => {
-      if (!groupId) return;
+      if (action !== "add") return;
+      if (!groupId || !Array.isArray(participants)) return;
 
-      const currentSock = getSock();
+      for (const participant of participants) {
+        const rawId =
+          typeof participant === "string"
+            ? participant
+            : (participant?.lid || participant?.id);
 
-      // Determinar el JID real a usar
-      let jidFinal = jid;
+        if (!rawId) continue;
 
-      // Si el jid es un LID o no está resuelto, intentar resolverlo
-      if (!esJidResuelto(jidFinal)) {
-        const candidato = lid || jid;
-
-        if (candidato && currentSock?.lid?.resolve) {
-          try {
-            const resuelto = await currentSock.lid.resolve(candidato);
-            if (resuelto && esJidResuelto(resuelto)) {
-              jidFinal = resuelto;
-            }
-          } catch (err) {
-            console.warn("[welcome] Error al resolver LID:", err.message);
-          }
-        }
-      }
-
-      // Si aún no está resuelto, no podemos armar el mensaje (número desconocido)
-      if (!esJidResuelto(jidFinal)) {
-        console.warn(
-          `[welcome] No se pudo resolver el número para lid: ${lid || jid} en ${groupId}. Bienvenida omitida.`
-        );
-        return;
-      }
-
-      try {
-        await currentSock.sendMessage(groupId, {
-          text: WELCOME_TEXT(jidFinal, groupId),
-        });
-
-        console.log(
-          `[welcome] Bienvenida enviada → jid: ${jidFinal}${lid ? ` (lid: ${lid})` : ""} en ${groupId}`
-        );
-      } catch (err) {
-        console.error("[welcome] Error al enviar bienvenida:", err.message);
+        manejarParticipante(getSock, groupId, rawId);
       }
     });
 
-    console.log("[welcome] ✅ Listener onJoin registrado.");
+    console.log("[welcome] ✅ Listener group-participants.update registrado.");
   },
 
   execute: async () => {},
