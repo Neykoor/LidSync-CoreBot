@@ -1,33 +1,28 @@
 import { connectToWhatsApp, setReconnectCallback } from "./connection.js";
 import { loadEvents } from "./loader.js";
-import { pluginLid } from "lidsync";
+import { pluginLid, LidDatabase } from "lidsync";
 import store from "./lib/store.js";
 
 let currentSock = null;
 let isRestarting = false;
 let eventsLoaded = false;
 let storeBound = false;
+const lidDb = new LidDatabase("lidsync.db");
 
 export const getSock = () => currentSock;
 
 async function start() {
   try {
-    if (isRestarting) {
-      console.log("[Bot] Reinicio en progreso...");
-      return;
-    }
-
+    if (isRestarting) return;
     isRestarting = true;
 
     let sock = await connectToWhatsApp();
-
     if (!sock) {
-      console.error("[Bot] No se pudo obtener socket");
       isRestarting = false;
       return;
     }
 
-    sock = pluginLid(sock, { store });
+    sock = pluginLid(sock, { store, db: lidDb });
     currentSock = sock;
 
     if (!storeBound) {
@@ -38,60 +33,34 @@ async function start() {
     if (!eventsLoaded) {
       await loadEvents(getSock);
       eventsLoaded = true;
-      console.log("[Bot] Eventos cargados (getter activo)");
     }
 
     setReconnectCallback(async (newSock) => {
-      console.log("[Bot] 🔄 Reconexión detectada...");
-
-      if (currentSock?.lid?.destroy) {
-        currentSock.lid.destroy();
-      }
-
-      const updatedSock = pluginLid(newSock, { store });
-      currentSock = updatedSock;
-
-      console.log("[Bot] ✅ Reconexión completada, mismo listener, socket nuevo");
+      if (currentSock?.lid?.destroy) currentSock.lid.destroy();
+      currentSock = pluginLid(newSock, { store, db: lidDb });
     });
 
     isRestarting = false;
-    console.log("[Bot] ✅ Iniciado y listo");
-
   } catch (err) {
-    console.error("[Bot] Error fatal:", err);
     isRestarting = false;
-
-    if (store && typeof store.save === "function") {
-      await store.save(true).catch(() => {});
-    }
-
-    console.log("[Bot] Esperando reconexión automática...");
+    if (store?.save) await store.save(true).catch(() => {});
   }
 }
 
 const gracefulShutdown = async () => {
-  console.log("\n[Bot] Apagando de forma segura...");
   try {
     if (currentSock?.lid?.destroy) currentSock.lid.destroy();
-    if (store && typeof store.destroy === "function") {
-      await store.destroy();
-    } else if (store && typeof store.save === "function") {
-      await store.save(true);
-    }
+    if (store?.destroy) await store.destroy();
+    else if (store?.save) await store.save(true);
+    lidDb.close();
   } catch (e) {}
   process.exit(0);
 };
 
 process.on("SIGINT", gracefulShutdown);
 process.on("SIGTERM", gracefulShutdown);
-
-process.on("uncaughtException", (err) => {
-  console.error("[Bot] ⚠️ Error no capturado:", err.message);
-});
-
-process.on("unhandledRejection", (reason) => {
-  console.error("[Bot] ⚠️ Promesa rechazada no capturada:", reason);
-});
+process.on("uncaughtException", () => {});
+process.on("unhandledRejection", () => {});
 
 export function getBotStatus() {
   return {
